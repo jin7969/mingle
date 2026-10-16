@@ -1,0 +1,71 @@
+{
+  "name": "amazon-ivs-react-native-player",
+  "version": "1.6.1",
+  "description": "amazon-ivs-react-native-player",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "cpp",
+    "*.podspec",
+    "react-native.config.js",
+    "!ios/build",
+    "!android/build",
+    "!android/gradle",
+    "!android/gradlew",
+    "!android/gradlew.bat",
+    "!android/local.properties",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "keywords": [
+    "react-native",
+    "ios",
+    "android"
+  ],
+  "repository": "https://github.com/aws/amazon-ivs-react-native-player",
+  "author": "AWS",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/aws/amazon-ivs-react-native-player/issues"
+  },
+  "homepage": "https://github.com/aws/amazon-ivs-react-native-player#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "codegenConfig": {
+    "name": "AmazonIvsSpec",
+    "type": "all",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.amazonaws.ivs.reactnative.player"
+    },
+    "ios": {
+      "componentProvider": {
+        "AmazonIvs": "AmazonIvs"
+      }
+    }
+  },
+  "create-react-native-library": {
+    "languages": "kotlin-objc",
+    "type": "fabric-view",
+    "version": "0.54.7"
+  }
+}

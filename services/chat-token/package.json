@@ -1,0 +1,19 @@
+{
+  "name": "@mingle/chat-token",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ivschat": "^3.1152.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "esbuild": "^0.27.0",
+    "typescript": "~6.0.3"
+  }
+}

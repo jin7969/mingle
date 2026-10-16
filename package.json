@@ -1,0 +1,23 @@
+{
+  "name": "@mingle/root",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "engines": {
+    "node": ">=22.13 <23"
+  },
+  "packageManager": "npm@10.9.2",
+  "scripts": {
+    "dev:mobile": "npm run start --workspace=@mingle/mobile",
+    "dev:overlay": "npm run dev --workspace=@mingle/overlay",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "sam:build": "sam build --template-file services/chat-token/template.yaml",
+    "sam:local": "sam local start-api --template-file services/chat-token/template.yaml --env-vars services/chat-token/env.local.json"
+  }
+}

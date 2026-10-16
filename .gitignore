@@ -1,0 +1,22 @@
+node_modules/
+.DS_Store
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+env.local.json
+
+# Build output
+dist/
+coverage/
+.aws-sam/
+
+# Expo
+.expo/
+apps/mobile/ios/
+apps/mobile/android/
+
+# Editors
+.idea/
+*.swp

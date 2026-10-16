@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="com.amazonaws.ivs.reactnative.player">
+
+  <application>
+    <meta-data
+      android:name="com.amazonaws.ivs.player.FRAMEWORK_NAME"
+      android:value="reactnativeplayer" />
+    <meta-data
+      android:name="com.amazonaws.ivs.player.FRAMEWORK_VERSION"
+      android:value="${sdkVersion}" />
+
+    <service
+      android:name="com.amazonaws.ivs.reactnative.player.IVSBackgroundService"
+      android:exported="false"
+      android:foregroundServiceType="mediaPlayback" />
+  </application>
+</manifest>

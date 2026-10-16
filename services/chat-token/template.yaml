@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Mingle IVS Chat token API
+
+Parameters:
+  RoomArn:
+    Type: String
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+
+Resources:
+  ChatApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref AllowedOrigin
+        AllowHeaders:
+          - content-type
+        AllowMethods:
+          - POST
+
+  ChatTokenFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - src/handler.ts
+        Minify: true
+        Sourcemap: true
+        Target: es2022
+    Properties:
+      Runtime: nodejs22.x
+      Handler: handler.handler
+      CodeUri: .
+      Timeout: 5
+      MemorySize: 256
+      Environment:
+        Variables:
+          ROOM_ARN: !Ref RoomArn
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: ivschat:CreateChatToken
+              Resource: !Ref RoomArn
+      Events:
+        CreateToken:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ChatApi
+            Path: /chat/token
+            Method: POST
+
+Outputs:
+  ChatTokenApiUrl:
+    Value: !Sub https://${ChatApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/chat/token
