@@ -15,10 +15,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatMessageRow, type ChatMessage } from '@/components/chat-message-row';
 import { LiveStage } from '@/components/live-stage';
+import type { LiveStreamStatus } from '@/components/live-stage.types';
 import { MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const nicknamePattern = /^[\p{L}\p{N}_-]{2,20}$/u;
+
+const streamStatusCopy: Record<
+  LiveStreamStatus,
+  { connection: string; description: string; tag: string }
+> = {
+  loading: { connection: '연결 중', description: '방송에 연결하고 있습니다', tag: 'CONNECTING' },
+  live: { connection: '방송 중', description: '현재 라이브 방송 중입니다', tag: 'LIVE' },
+  ended: { connection: '종료됨', description: '방송이 종료되었습니다', tag: 'OFFLINE' },
+  error: { connection: '오류', description: '영상을 불러오지 못했습니다', tag: 'ERROR' },
+  unconfigured: { connection: '설정 필요', description: '재생 주소 설정이 필요합니다', tag: 'SETUP' },
+};
 
 export default function BroadcastScreen() {
   const theme = useTheme();
@@ -28,6 +40,14 @@ export default function BroadcastScreen() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [streamStatus, setStreamStatus] = useState<LiveStreamStatus>('loading');
+  const streamCopy = streamStatusCopy[streamStatus];
+  const streamColor =
+    streamStatus === 'live'
+      ? theme.live
+      : streamStatus === 'loading'
+        ? theme.accent
+        : theme.textSecondary;
 
   const handleSend = () => {
     const cleanNickname = nickname.trim();
@@ -69,22 +89,24 @@ export default function BroadcastScreen() {
               <Text style={[styles.screenTitle, { color: theme.text }]}>라이브 방송</Text>
             </View>
             <View style={[styles.connectionBadge, { backgroundColor: theme.surfaceMuted }]}>
-              <View style={[styles.connectionDot, { backgroundColor: theme.textSecondary }]} />
-              <Text style={[styles.connectionText, { color: theme.textSecondary }]}>연결 전</Text>
+              <View style={[styles.connectionDot, { backgroundColor: streamColor }]} />
+              <Text style={[styles.connectionText, { color: streamColor }]}>{streamCopy.connection}</Text>
             </View>
           </View>
 
           <View style={styles.stageInset}>
-            <LiveStage />
+            <LiveStage onStatusChange={setStreamStatus} />
           </View>
 
           <View style={[styles.broadcastInfo, { borderBottomColor: theme.border }]}>
             <View style={styles.broadcastCopy}>
               <Text style={[styles.broadcastTitle, { color: theme.text }]}>Mingle 라이브</Text>
-              <Text style={[styles.broadcastDescription, { color: theme.textSecondary }]}>현재 방송을 준비하고 있습니다</Text>
+              <Text style={[styles.broadcastDescription, { color: theme.textSecondary }]}>
+                {streamCopy.description}
+              </Text>
             </View>
-            <View style={[styles.offlineTag, { borderColor: theme.border }]}>
-              <Text style={[styles.offlineTagText, { color: theme.textSecondary }]}>OFFLINE</Text>
+            <View style={[styles.offlineTag, { borderColor: streamColor }]}>
+              <Text style={[styles.offlineTagText, { color: streamColor }]}>{streamCopy.tag}</Text>
             </View>
           </View>
 
