@@ -17,6 +17,7 @@ import { ChatMessageRow, type ChatMessage } from '@/components/chat-message-row'
 import { LiveStage } from '@/components/live-stage';
 import type { LiveStreamStatus } from '@/components/live-stage.types';
 import { MaxContentWidth } from '@/constants/theme';
+import { useIvsChat, type ChatConnectionStatus } from '@/hooks/use-ivs-chat';
 import { useTheme } from '@/hooks/use-theme';
 
 const nicknamePattern = /^[\p{L}\p{N}_-]{2,20}$/u;
@@ -32,15 +33,36 @@ const streamStatusCopy: Record<
   unconfigured: { connection: '설정 필요', description: '재생 주소 설정이 필요합니다', tag: 'SETUP' },
 };
 
+const chatStatusCopy: Record<ChatConnectionStatus, string> = {
+  idle: '입장 전',
+  connecting: '연결 중',
+  connected: '연결됨',
+  reconnecting: '재연결 중',
+  disconnected: '연결 끊김',
+  error: '연결 오류',
+  unconfigured: '설정 필요',
+};
+
 export default function BroadcastScreen() {
   const theme = useTheme();
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const messageInputRef = useRef<TextInput>(null);
   const [nickname, setNickname] = useState('');
   const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
   const [streamStatus, setStreamStatus] = useState<LiveStreamStatus>('loading');
+  const {
+    activeNickname,
+    status: chatStatus,
+    messages,
+    error: chatError,
+    isSending,
+    connect: connectChat,
+    disconnect: disconnectChat,
+    retry: retryChat,
+    sendMessage,
+    clearError: clearChatError,
+  } = useIvsChat();
   const streamCopy = streamStatusCopy[streamStatus];
   const streamColor =
     streamStatus === 'live'
@@ -48,33 +70,66 @@ export default function BroadcastScreen() {
       : streamStatus === 'loading'
         ? theme.accent
         : theme.textSecondary;
+  const isChatConnected = chatStatus === 'connected';
+  const isChatBusy = chatStatus === 'connecting' || chatStatus === 'reconnecting';
+  const chatStatusColor =
+    isChatConnected
+      ? theme.accent
+      : chatStatus === 'error' || chatStatus === 'disconnected'
+        ? theme.live
+        : theme.textSecondary;
+  const displayError = formError ?? chatError;
 
-  const handleSend = () => {
+  const clearErrors = () => {
+    setFormError(null);
+    clearChatError();
+  };
+
+  const handleJoinChat = () => {
     const cleanNickname = nickname.trim();
+    if (!nicknamePattern.test(cleanNickname)) {
+      setFormError('닉네임은 2~20자의 한글, 영문, 숫자로 입력해 주세요.');
+      return;
+    }
+
+    clearErrors();
+    connectChat(cleanNickname);
+  };
+
+  const handleNicknameAction = () => {
+    if (isChatConnected) {
+      disconnectChat();
+      setNickname('');
+      setDraft('');
+      return;
+    }
+    if (activeNickname && activeNickname === nickname.trim()) {
+      retryChat();
+      return;
+    }
+    handleJoinChat();
+  };
+
+  const handleSend = async () => {
     const cleanMessage = draft.trim();
 
-    if (!nicknamePattern.test(cleanNickname)) {
-      setError('닉네임은 2~20자의 한글, 영문, 숫자로 입력해 주세요.');
+    if (!isChatConnected) {
+      setFormError('닉네임을 입력하고 채팅에 먼저 입장해 주세요.');
       return;
     }
     if (!cleanMessage) {
-      setError('메시지를 입력해 주세요.');
+      setFormError('메시지를 입력해 주세요.');
       return;
     }
 
-    const now = new Date();
-    setMessages((current) => [
-      ...current,
-      {
-        id: `${now.getTime()}-${current.length}`,
-        nickname: cleanNickname,
-        text: cleanMessage,
-        sentAt: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-    setDraft('');
-    setError(null);
-    Keyboard.dismiss();
+    clearErrors();
+    try {
+      await sendMessage(cleanMessage);
+      setDraft('');
+      Keyboard.dismiss();
+    } catch {
+      // The chat hook exposes a user-facing send error and keeps the draft intact.
+    }
   };
 
   return (
@@ -119,7 +174,15 @@ export default function BroadcastScreen() {
               />
               <Text style={[styles.chatTitle, { color: theme.text }]}>실시간 채팅</Text>
             </View>
-            <Text style={[styles.messageCount, { color: theme.textSecondary }]}>{messages.length}</Text>
+            <View style={styles.chatMeta}>
+              <View style={styles.chatConnection}>
+                <View style={[styles.chatConnectionDot, { backgroundColor: chatStatusColor }]} />
+                <Text style={[styles.chatConnectionText, { color: chatStatusColor }]}>
+                  {chatStatusCopy[chatStatus]}
+                </Text>
+              </View>
+              <Text style={[styles.messageCount, { color: theme.textSecondary }]}>{messages.length}</Text>
+            </View>
           </View>
 
           <FlatList
@@ -134,13 +197,15 @@ export default function BroadcastScreen() {
             ListEmptyComponent={
               <View style={styles.emptyChat}>
                 <Text style={[styles.emptyChatTitle, { color: theme.text }]}>아직 메시지가 없어요</Text>
-                <Text style={[styles.emptyChatDescription, { color: theme.textSecondary }]}>라이브가 시작되면 대화를 나눌 수 있어요</Text>
+                <Text style={[styles.emptyChatDescription, { color: theme.textSecondary }]}>
+                  {isChatConnected ? '첫 메시지를 보내 대화를 시작해 보세요' : '닉네임을 입력하고 채팅에 입장해 주세요'}
+                </Text>
               </View>
             }
           />
 
           <View style={[styles.composer, { borderTopColor: theme.border, backgroundColor: theme.surface }]}>
-            {error && <Text style={[styles.errorText, { color: theme.live }]}>{error}</Text>}
+            {displayError && <Text style={[styles.errorText, { color: theme.live }]}>{displayError}</Text>}
             <View style={styles.nicknameRow}>
               <SymbolView
                 name={{ ios: 'person.fill', android: 'person', web: 'person' }}
@@ -151,17 +216,54 @@ export default function BroadcastScreen() {
                 value={nickname}
                 onChangeText={(value) => {
                   setNickname(value);
-                  if (error) setError(null);
+                  if (displayError) clearErrors();
                 }}
-                onSubmitEditing={() => messageInputRef.current?.focus()}
+                onSubmitEditing={isChatConnected ? () => messageInputRef.current?.focus() : handleJoinChat}
                 placeholder="닉네임"
                 placeholderTextColor={theme.textSecondary}
                 maxLength={20}
                 autoCapitalize="none"
-                returnKeyType="next"
+                editable={!isChatBusy && !isChatConnected}
+                returnKeyType={isChatConnected ? 'next' : 'done'}
                 style={[styles.nicknameInput, { color: theme.text }]}
                 accessibilityLabel="채팅 닉네임"
               />
+              <Pressable
+                onPress={handleNicknameAction}
+                disabled={isChatBusy || chatStatus === 'unconfigured'}
+                accessibilityRole="button"
+                accessibilityLabel={isChatConnected ? '닉네임 변경' : '채팅 입장 또는 재연결'}
+                style={({ pressed }) => [
+                  styles.joinButton,
+                  { borderColor: theme.border },
+                  (isChatBusy || chatStatus === 'unconfigured') && styles.joinButtonDisabled,
+                  pressed && styles.joinButtonPressed,
+                ]}>
+                <SymbolView
+                  name={{
+                    ios: isChatConnected
+                      ? 'pencil'
+                      : activeNickname === nickname.trim()
+                        ? 'arrow.clockwise'
+                        : 'person.badge.plus',
+                    android: isChatConnected
+                      ? 'edit'
+                      : activeNickname === nickname.trim()
+                        ? 'refresh'
+                        : 'person_add',
+                    web: isChatConnected
+                      ? 'edit'
+                      : activeNickname === nickname.trim()
+                        ? 'refresh'
+                        : 'person_add',
+                  }}
+                  size={14}
+                  tintColor={theme.textSecondary}
+                />
+                <Text style={[styles.joinButtonText, { color: theme.textSecondary }]}>
+                  {isChatConnected ? '변경' : activeNickname === nickname.trim() ? '재연결' : '입장'}
+                </Text>
+              </Pressable>
             </View>
             <View style={styles.messageRow}>
               <TextInput
@@ -169,13 +271,14 @@ export default function BroadcastScreen() {
                 value={draft}
                 onChangeText={(value) => {
                   setDraft(value);
-                  if (error) setError(null);
+                  if (displayError) clearErrors();
                 }}
                 onSubmitEditing={handleSend}
-                placeholder="메시지를 입력하세요"
+                placeholder={isChatConnected ? '메시지를 입력하세요' : '채팅에 입장하면 메시지를 보낼 수 있어요'}
                 placeholderTextColor={theme.textSecondary}
                 maxLength={500}
                 returnKeyType="send"
+                editable={isChatConnected && !isSending}
                 style={[
                   styles.messageInput,
                   { color: theme.text, backgroundColor: theme.surfaceMuted, borderColor: theme.border },
@@ -184,13 +287,13 @@ export default function BroadcastScreen() {
               />
               <Pressable
                 onPress={handleSend}
-                disabled={!draft.trim()}
+                disabled={!isChatConnected || !draft.trim() || isSending}
                 accessibilityRole="button"
                 accessibilityLabel="메시지 보내기"
                 style={({ pressed }) => [
                   styles.sendButton,
                   { backgroundColor: theme.accent },
-                  !draft.trim() && styles.sendButtonDisabled,
+                  (!isChatConnected || !draft.trim() || isSending) && styles.sendButtonDisabled,
                   pressed && styles.sendButtonPressed,
                 ]}>
                 <SymbolView
@@ -319,6 +422,26 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '800',
   },
+  chatMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  chatConnection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  chatConnectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  chatConnectionText: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
   messageCount: {
     minWidth: 24,
     textAlign: 'right',
@@ -383,6 +506,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     fontWeight: '600',
+  },
+  joinButton: {
+    height: 28,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  joinButtonDisabled: {
+    opacity: 0.45,
+  },
+  joinButtonPressed: {
+    opacity: 0.7,
+  },
+  joinButtonText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
   },
   messageRow: {
     flexDirection: 'row',
