@@ -10,7 +10,18 @@
     "ios": {
       "bundleIdentifier": "com.mingle.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "EXExpoAppSceneDelegate"
+              }
+            ]
+          }
+        }
       }
     },
     "android": {
@@ -28,6 +39,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/with-ios-scene-lifecycle",
       "expo-router",
       [
         "expo-splash-screen",
